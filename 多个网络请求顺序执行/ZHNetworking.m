@@ -15,7 +15,7 @@
     
     AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
     
-    [manager GET:urlStr parameters:nil progress:^(NSProgress * _Nonnull downloadProgress) {
+    [manager GET:urlStr parameters:parameters progress:^(NSProgress * _Nonnull downloadProgress) {
         
     } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
         success(responseObject);

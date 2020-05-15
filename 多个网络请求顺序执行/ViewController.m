@@ -44,14 +44,17 @@
     // 第二个请求在第一个请求成功的回调里进行(能够实现需求, 请求是顺序执行的)
 //    [self requestDataInBlock];
     
-    // 用GCD任务和组(没实现需求, 代码执行是按顺序, 但是请求不是顺序执行的, 因为AFN本身就是异步加载)
+    // 用GCD任务和组(没实现需求, 代码执行是按顺序, 但是请求结果不是顺序执行的, 因为AFN本身就是异步加载)
 //    [self requestWithDispatchGroup];
     
-    // 用NSOperation操作依赖(没实现需求, 代码执行是按顺序, 但是请求不是顺序执行的, 因为AFN本身就是异步加载)
+// 用NSOperation操作依赖(没实现需求, 代码执行是按顺序, 但是请求结果不是顺序执行的, 因为AFN本身就是异步加载)
 //    [self requestWithOperationDependency];
     
-    // 用GCD信号量实现(能够实现需求, 请求是顺序执行的)
-    [self requestWithDispatchSemaphore];
+// 用GCD信号量实现(能够实现需求, 请求是顺序执行的)
+//    [self requestWithDispatchSemaphore];
+    
+// 用GCD的barrier函数实现(没有实现需求, 代码执行是顺序的, 但是请求结果不是顺序执行的, 由于AFN本身就是异步加载)
+    [self requestWithGCDBarrier];
 }
 #pragma mark - 用GCD信号量实现(能够实现需求, 请求是顺序执行的)
 - (void)requestWithDispatchSemaphore{
@@ -242,6 +245,54 @@
     // *************************************
     
 }
+
+
+#pragma mark - 新增加的栅栏函数 by ZH 2020.5.15
+// 栅栏函数实现顺序请求(不能实现顺序请求, 因为添加到queue中任务本身就是异步的, 所以不行)
+- (void)requestWithGCDBarrier{
+    // DISPATCH_QUEUE_CONCURRENT : 并发队列
+    // DISPATCH_QUEUE_SERIAL : 串行队列
+    dispatch_queue_t queue = dispatch_queue_create("ZHQueue", DISPATCH_QUEUE_CONCURRENT);
+    NSLog(@"000");
+    dispatch_async(queue, ^{
+        NSLog(@"111");
+        [self loginRequest]; // 请求本身就是异步, 当程序过了这一行, 就能走到barrier里面
+        NSLog(@"222");
+    });
+    NSLog(@"333");
+    // 这里用barrier_syns请求结果一样, 就是打印结果不同, 主要区别就是sync这个会阻塞主线程
+    dispatch_barrier_async(queue, ^{
+        NSLog(@"444");
+        [self checkVersionRequest];
+        NSLog(@"555");
+    });
+    NSLog(@"666");
+}
+// 1 > 登录请求
+- (void)loginRequest{
+    NSLog(@"开始进行登录请求");
+    NSDictionary *loginDic = @{@"userName":@"lgys06", @"password":@"123321"};
+    NSString *loginUrl = @"http://mm-dev.ebnew.com/mobile/user/login";
+    [ZHNetworking POSTRequestWithUrl:loginUrl parameters:loginDic success:^(id requestData) {
+        NSLog(@"登录请求成功--%@", requestData);
+    } failure:^(NSError *error) {
+        NSLog(@"登录请求失败--%@", error);
+    }];
+}
+// 2 > 检查版本请求(get)
+- (void)checkVersionRequest{
+    NSLog(@"开始进行检查版本请求");
+    NSDictionary *checkVersionDic = @{@"resource":@"ios", @"version":@"83"};
+    NSString *checkVersionUrl = @"http://mm-dev.ebnew.com/mobile/version/getAppVersion";
+    [ZHNetworking GETRequestWithUrl:checkVersionUrl parameters:checkVersionDic success:^(id requestData) {
+        NSLog(@"检查版本请求成功--%@", requestData);
+    } failure:^(NSError *error) {
+        NSLog(@"检查版本请求失败--%@", error);
+    }];
+}
+
+
+
 
 - (void)didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
